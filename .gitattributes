@@ -1,0 +1,7 @@
+# Files executed or parsed inside WSL/Linux must keep LF line endings on Windows checkouts.
+sim/**/*.sh   text eol=lf
+sim/**/*.resc text eol=lf
+sim/**/*.repl text eol=lf
+sim/**/*.py   text eol=lf
+*.bat         text eol=crlf
+sim/firmware/*.out binary

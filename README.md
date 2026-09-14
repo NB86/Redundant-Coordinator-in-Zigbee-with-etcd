@@ -55,8 +55,7 @@ For complete details, see the **[User Guide](USER_GUIDE.md)**.
 ├── src/
 │   ├── coordinator.py           # HA Coordinator daemon (election, sync, failover)
 │   ├── radio.py                 # Radio abstraction layer (bellows / Renode vs. mock)
-│   ├── end_device_sim.py        # Autonomous Zigbee End Device simulation (EZSP client)
-│   └── mock_radio.py            # In-memory mock radio implementation
+│   └── end_device_sim.py        # Autonomous Zigbee End Device simulation (EZSP client)
 ├── sim/
 │   ├── firmware/mg24_ncp.out    # Precompiled EFR32MG24 EmberZNet NCP binary
 │   ├── renode/twonode.resc      # Renode simulation script for dual NCPs on 802.15.4
@@ -75,3 +74,4 @@ For complete details, see the **[User Guide](USER_GUIDE.md)**.
 
 ## ⚖️ License
 Academic and educational project developed for the Technion - Israel Institute of Technology.
+

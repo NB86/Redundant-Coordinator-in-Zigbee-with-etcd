@@ -1,0 +1,70 @@
+:name: HA Zigbee two-node simulation
+:description: Two EFR32MG24 EmberZNet NCPs on one simulated 802.15.4 medium.
+:
+:   ncp : the coordinator's NCP, UART on tcp 24842 (bellows: socket://127.0.0.1:24842)
+:   dev : a second NCP joined as a Zigbee end device by src/end_device_sim.py, UART on tcp 24852
+:
+: Simulation-side adjustments needed for this firmware (the firmware itself is unmodified):
+:   * cores are scheduled serially: the default parallel scheduler of the app core and the radio
+:     sequencer core (un-halted by the radio model during RAIL init) deadlocks the time source;
+:   * the flash user-data page (0x0FE00000) is plain memory (brd4186c_userdata_mem.repl, installed by
+:     sim/setup_wsl.sh): the stock model rejects 16-bit reads and returned 0 for the MFG_ASH_CONFIG
+:     token, which set the ASH transmit window to 0 so the NCP could never send a DATA frame;
+:   * the page image (userdata_sim.bin) is erased (0xFF) like an unprogrammed part, except the ASH
+:     reboot delay set to 0 ms so RSTACK follows a reset immediately;
+:   * EMU RSTCAUSE (offset 0x94) reads 0 in the model, the firmware then classifies the reset as
+:     "unknown" and ASH sends an ERROR frame instead of RSTACK; report a power-on reset instead;
+:   * the NCP resets itself (SYSRESETREQ) on every ASH RST frame and there is no Gecko bootloader
+:     at 0x08000000, so a `reset` macro re-enters the application image; Renode runs it on every
+:     system reset;
+:   * PerformanceInMips 10: the NCP busy-loops while it has no network; this keeps virtual time close
+:     to host time so bellows' real-time timeouts are met.
+
+using sysbus
+emulation SetGlobalSerialExecution true
+emulation CreateIEEE802_15_4Medium "wireless"
+logLevel 2
+
+# Resolved through Renode's search path: sim/run_ncps.sh starts Renode with `path add @<sim dir>`.
+$fw?=@firmware/mg24_ncp.out
+$userdata?=@renode/userdata_sim.bin
+
+################################################
+mach create "ncp"
+machine LoadPlatformDescription @platforms/boards/silabs/brd4186c_userdata_mem.repl
+sysbus.cpu PerformanceInMips 10
+sysbus LoadELF $fw
+sysbus LoadBinary $userdata 0x0FE00000
+sysbus SetHookAfterPeripheralRead sysbus.emu "if offset == 0x94: value = 0x1"
+macro reset
+"""
+    sysbus.cpu VectorTableOffset 0x08006000
+    sysbus.cpu SP `sysbus ReadDoubleWord 0x08006000`
+    sysbus.cpu PC `sysbus ReadDoubleWord 0x08006004`
+    sysbus.seqcpu IsHalted true
+"""
+runMacro $reset
+emulation CreateServerSocketTerminal 24842 "uart_ncp" false
+connector Connect sysbus.usart0 uart_ncp
+connector Connect sysbus.radio wireless
+
+################################################
+mach create "dev"
+machine LoadPlatformDescription @platforms/boards/silabs/brd4186c_userdata_mem.repl
+sysbus.cpu PerformanceInMips 10
+sysbus LoadELF $fw
+sysbus LoadBinary $userdata 0x0FE00000
+sysbus SetHookAfterPeripheralRead sysbus.emu "if offset == 0x94: value = 0x1"
+macro reset
+"""
+    sysbus.cpu VectorTableOffset 0x08006000
+    sysbus.cpu SP `sysbus ReadDoubleWord 0x08006000`
+    sysbus.cpu PC `sysbus ReadDoubleWord 0x08006004`
+    sysbus.seqcpu IsHalted true
+"""
+runMacro $reset
+emulation CreateServerSocketTerminal 24852 "uart_dev" false
+connector Connect sysbus.usart0 uart_dev
+connector Connect sysbus.radio wireless
+
+start
