@@ -1,5 +1,5 @@
-zigpy>=0.60.0
+zigpy>=2.2.0
+bellows>=1.0.0
 git+https://github.com/kragniz/python-etcd3
-gmqtt>=0.6.11
 protobuf<=3.20.3
 tenacity<=8.1.0
